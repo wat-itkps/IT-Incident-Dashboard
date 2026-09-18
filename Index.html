@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แดชบอร์ดสรุปงานแจ้งปัญหา IT (Live)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1F4E79;
+    --primary-light: #2E75B6;
+    --bg: #F0F4F8;
+    --card: #FFFFFF;
+    --text: #1A202C;
+    --muted: #64748B;
+    --border: #E2E8F0;
+    --shadow: 0 4px 20px rgba(31,78,121,0.08);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Sarabun', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .header {
+    background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 50%, #5B9BD5 100%);
+    color: white;
+    padding: 28px 24px 32px;
+    text-align: center;
+  }
+  .header h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 6px; }
+  .header p { font-size: 0.95rem; opacity: 0.85; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: -36px;
+    position: relative;
+    z-index: 2;
+  }
+  .kpi-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px 16px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+  .kpi-label { font-size: 0.85rem; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+  .kpi-value { font-size: 1.9rem; font-weight: 700; color: var(--primary); }
+  .kpi-unit { font-size: 0.8rem; color: var(--muted); }
+
+  .section { margin-top: 28px; }
+  .section-title {
+    font-size: 1.2rem; font-weight: 600; color: var(--primary);
+    margin-bottom: 14px;
+  }
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .chart-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+  .chart-card h3 {
+    font-size: 1rem; font-weight: 600; color: var(--primary);
+    margin-bottom: 12px; text-align: center;
+  }
+  .chart-wrap { position: relative; height: 320px; }
+
+  .table-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  thead th {
+    background: var(--primary); color: white;
+    padding: 12px 10px; text-align: center; font-weight: 600;
+  }
+  tbody td {
+    padding: 10px; text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td:nth-child(2) { text-align: left; font-weight: 500; }
+  tbody tr:hover { background: #F0F7FF; }
+  tbody tr:nth-child(even) { background: #F8FAFC; }
+  .cat-badge {
+    display: inline-block; padding: 3px 10px;
+    border-radius: 20px; font-size: 0.85rem; font-weight: 500;
+  }
+  .total-row td {
+    background: var(--primary) !important; color: white; font-weight: 700;
+  }
+
+  .dept-list { display: flex; flex-direction: column; gap: 10px; }
+  .dept-item {
+    display: grid;
+    grid-template-columns: 140px 1fr 50px;
+    align-items: center; gap: 10px;
+  }
+  .dept-name {
+    font-size: 0.88rem; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .dept-bar-bg {
+    background: #E8F0FE; border-radius: 8px; height: 22px; overflow: hidden;
+  }
+  .dept-bar {
+    height: 100%; border-radius: 8px;
+    background: linear-gradient(90deg, #5B9BD5, #2E75B6);
+    display: flex; align-items: center; padding-left: 8px;
+    font-size: 0.75rem; color: white; font-weight: 600; min-width: 30px;
+  }
+  .dept-count { font-weight: 600; color: var(--primary); text-align: right; }
+
+  .loading, .error {
+    text-align: center; padding: 60px 20px; color: var(--muted);
+  }
+  .loading .spinner {
+    width: 40px; height: 40px; border: 4px solid #ddd;
+    border-top-color: var(--primary); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error { color: #c0392b; }
+  .updated {
+    text-align: center; font-size: 0.85rem; color: var(--muted);
+    margin-top: 12px;
+  }
+  footer {
+    text-align: center; padding: 24px; color: var(--muted); font-size: 0.85rem;
+  }
+
+  @media (max-width: 900px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-row { grid-template-columns: 1fr; }
+    .header h1 { font-size: 1.4rem; }
+    .dept-item { grid-template-columns: 100px 1fr 40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 แดชบอร์ดสรุปงานแจ้งปัญหา IT</h1>
+  <p>ตามหมวดงาน (คอลัมน์ K) · ข้อมูลอัปเดตแบบ Live จาก Google Sheet</p>
+</div>
+
+<div class="container" id="app">
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div>กำลังโหลดข้อมูลจาก Google Sheet...</div>
+  </div>
+</div>
+
+<footer>
+  แหล่งข้อมูล: แบบบันทึกการแจ้งปัญหา (Incident Report) · อัปเดตอัตโนมัติเมื่อเปิดหน้า
+</footer>
+
+<script>
+  // ========== ใส่ Web App URL ที่ได้จาก Apps Script ตรงนี้ ==========
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwdw6YLKNoZ3FvxQLrYaebFuKAoNw18cwEZLjaUHcMq5bUhm1TwDDM550EkTgRdqF724Q/exec';
+  // ================================================================
+
+  const colors = [
+    '#5B9BD5','#ED7D31','#70AD47','#FFC000','#9DC3E6',
+    '#F4B183','#A9D08E','#FFE699','#BDD7EE','#F8CBAD',
+    '#C5E0B4','#FFF2CC','#D6DCE4','#FCE4D6','#C6EFCE'
+  ];
+
+  let pieChart = null;
+  let barChart = null;
+
+  async function loadData() {
+    const app = document.getElementById('app');
+    try {
+      const res = await fetch(WEB_APP_URL);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      renderDashboard(data);
+    } catch (err) {
+      app.innerHTML = `
+        <div class="error">
+          <h3>โหลดข้อมูลไม่สำเร็จ</h3>
+          <p>${err.message}</p>
+          <p style="margin-top:12px;font-size:0.9rem">
+            ตรวจสอบว่าได้ Deploy Web App แล้ว และใส่ URL ถูกต้อง
+          </p>
+        </div>`;
+    }
+  }
+
+  function renderDashboard(data) {
+    const app = document.getElementById('app');
+    const summary = data.summary;
+    const depts = data.departments;
+
+    app.innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">จำนวนงานทั้งหมด</div>
+          <div class="kpi-value">${data.totalJobs.toLocaleString()}</div>
+          <div class="kpi-unit">รายการ</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">เวลารวม</div>
+          <div class="kpi-value">${data.totalHours}</div>
+          <div class="kpi-unit">ชั่วโมง</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">เวลาเฉลี่ย</div>
+          <div class="kpi-value">${data.avgMinutes}</div>
+          <div class="kpi-unit">นาที / รายการ</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">จำนวนหมวดงาน</div>
+          <div class="kpi-value">${data.numCategories}</div>
+          <div class="kpi-unit">หมวด</div>
+        </div>
+      </div>
+
+      <div class="updated">อัปเดตล่าสุด: ${data.updatedAt}</div>
+
+      <div class="section charts-row">
+        <div class="chart-card">
+          <h3>สัดส่วนจำนวนงานตามหมวด</h3>
+          <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>เวลารวม (ชั่วโมง) ตามหมวดงาน</h3>
+          <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">📋 สรุปตามหมวดงาน</div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>ลำดับ</th>
+                <th>หมวดงาน</th>
+                <th>จำนวนงาน</th>
+                <th>สัดส่วน (%)</th>
+                <th>เวลารวม (ชม.)</th>
+                <th>เวลาเฉลี่ย (นาที)</th>
+                <th>มัธยฐาน</th>
+                <th>นานสุด</th>
+              </tr>
+            </thead>
+            <tbody id="summaryBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">🏥 Top 12 หน่วยงานที่แจ้งปัญหามากที่สุด</div>
+        <div class="chart-card">
+          <div class="dept-list" id="deptList"></div>
+        </div>
+      </div>
+    `;
+
+    // ตาราง
+    const tbody = document.getElementById('summaryBody');
+    summary.forEach((item, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td><span class="cat-badge" style="background:${colors[i % colors.length]}33;border:1px solid ${colors[i % colors.length]}">${item.category}</span></td>
+        <td><strong>${item.count.toLocaleString()}</strong></td>
+        <td>${item.pct}%</td>
+        <td>${item.totalHr}</td>
+        <td>${item.avgMin}</td>
+        <td>${item.medianMin}</td>
+        <td>${item.maxMin}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    const totalTr = document.createElement('tr');
+    totalTr.className = 'total-row';
+    totalTr.innerHTML = `
+      <td></td>
+      <td>รวมทั้งหมด</td>
+      <td>${data.totalJobs.toLocaleString()}</td>
+      <td>100%</td>
+      <td>${data.totalHours}</td>
+      <td></td><td></td><td></td>
+    `;
+    tbody.appendChild(totalTr);
+
+    // หน่วยงาน
+    const maxDept = Math.max(...depts.map(d => d.count));
+    const deptList = document.getElementById('deptList');
+    depts.forEach(d => {
+      const pct = (d.count / maxDept * 100).toFixed(0);
+      const share = (d.count / data.totalJobs * 100).toFixed(1);
+      const div = document.createElement('div');
+      div.className = 'dept-item';
+      div.innerHTML = `
+        <div class="dept-name" title="${d.name}">${d.name}</div>
+        <div class="dept-bar-bg">
+          <div class="dept-bar" style="width:${pct}%">${share}%</div>
+        </div>
+        <div class="dept-count">${d.count}</div>
+      `;
+      deptList.appendChild(div);
+    });
+
+    // กราฟ
+    const cats = summary.map(s => s.category);
+    const counts = summary.map(s => s.count);
+    const hours = summary.map(s => s.totalHr);
+    const pcts = summary.map(s => s.pct);
+
+    pieChart = new Chart(document.getElementById('pieChart'), {
+      type: 'doughnut',
+      data: {
+        labels: cats,
+        datasets: [{
+          data: counts,
+          backgroundColor: colors.slice(0, cats.length),
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { font: { family: 'Sarabun', size: 11 }, boxWidth: 14, padding: 8 }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ${ctx.parsed.toLocaleString()} รายการ (${pcts[ctx.dataIndex]}%)`
+            }
+          }
+        }
+      }
+    });
+
+    barChart = new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: {
+        labels: cats.map(c => c.length > 14 ? c.substring(0, 13) + '…' : c),
+        datasets: [{
+          label: 'ชั่วโมง',
+          data: hours,
+          backgroundColor: colors.slice(0, cats.length).map(c => c + 'CC'),
+          borderColor: colors.slice(0, cats.length),
+          borderWidth: 1,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: ctx => cats[ctx[0].dataIndex],
+              label: ctx => ` ${ctx.parsed.y} ชั่วโมง`
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { font: { family: 'Sarabun', size: 10 }, maxRotation: 45, minRotation: 30 },
+            grid: { display: false }
+          },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'ชั่วโมง', font: { family: 'Sarabun' } },
+            ticks: { font: { family: 'Sarabun' } }
+          }
+        }
+      }
+    });
+  }
+
+  // เริ่มโหลด
+  loadData();
+</script>
+</body>
+</html>
